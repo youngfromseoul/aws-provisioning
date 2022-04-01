@@ -100,12 +100,11 @@ def lambda_handler(event, context):
                         {
                             "name": "Description",
                             "value": description
-                        } 
-                    ]
+                        }
+                    ],
                 }
             ]
     }
     
     logger.info("Slack Message        : " + str(slack_message))
-    
     send_message(slack_message)
