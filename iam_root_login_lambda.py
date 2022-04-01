@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import time
+import urllib3
 
 from datetime import datetime
 from datetime import timedelta
@@ -10,10 +11,23 @@ from base64 import b64decode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+http = urllib3.PoolManager()
+
 HOOK_URL = os.environ['HOOK_URL']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+def send_message(message):
+    
+    data = json.dumps(message).encode('utf-8')
+
+    res = http.request(
+        method='POST',
+        url=HOOK_URL,
+        body=data
+    )
+    print(res.data, res.status)
 
 def lambda_handler(event, context):
     
@@ -30,9 +44,8 @@ def lambda_handler(event, context):
     else:
         accountUserName = " "
         
-    # KST 시간 변환
-    state_login_time = data['eventTime'][:19]
-    kst_login_time = datetime.strptime(state_login_time, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=-9) #KST 시간 변환
+    # 시간
+    event_time = data['eventTime']
     
     # sourceIPAddress
     sourceIPAddress = data['sourceIPAddress']
@@ -40,28 +53,53 @@ def lambda_handler(event, context):
     # MFA 사용 유무
     usedMFA = data['additionalEventData']['MFAUsed']
     
+    # Acount
+    acount = data['userIdentity']['accountId']
+    
     # 접속 성공 유무
     loginStatusCheck = data['responseElements']['ConsoleLogin']
     
-    # Slack Message Title
-    title = "[Login %s] %s" %(loginStatusCheck, accountUserName)
     
-    msg = "**Time** %s / **IP Address** %s / **MFA** %s" % (kst_login_time, sourceIPAddress, usedMFA)
+    logger.info("HOOK URL     : " + HOOK_URL)
     
     slack_message = {
-        '@type': 'MessageCard',
-        'themeColor': "0076D7",
-        'title': title,
-        'text': msg
+            "@type": "MessageCard",
+            "themeColor": "0076D7",
+            "summary": "AWS Console Login",
+            "sections": [
+                {
+                    "activityTitle": "AWS Console Login Notice",
+                    "activitySubtitle": "AWS Console Login",
+                    "facts": [
+                        {
+                            "name": "Time(UTC)",
+                            "value": event_time
+                        },
+                        {
+                            "name": "Acount ID",
+                            "value": acount
+                        },
+                        {
+                            "name": "User",
+                            "value": accountUserName
+                        },
+                        {
+                            "name": "Source IP",
+                            "value": sourceIPAddress
+                        },
+                        {
+                            "name": "Status",
+                            "value": loginStatusCheck
+                        },  
+                        {
+                            "name": "MFA",
+                            "value": usedMFA
+                        }
+                    ]
+                }
+            ]
     }
+        
+    logger.info("Slack Message        : " + str(slack_message))
     
-
-    req = Request(HOOK_URL, json.dumps(slack_message).encode('utf-8'))
-    try:
-        response = urlopen(req)
-        response.read()
-        logger.info("Message posted")
-    except HTTPError as e:
-        logger.error("Request failed: %d %s", e.code, e.reason)
-    except URLError as e:
-        logger.error("Server connection failed: %s", e.reason)
+    send_message(slack_message)
