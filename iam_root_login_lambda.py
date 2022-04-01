@@ -11,8 +11,6 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
 HOOK_URL = os.environ['HOOK_URL']
-SLACK_CHANNEL = os.environ['TeamsChannel']
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -36,9 +34,6 @@ def lambda_handler(event, context):
     state_login_time = data['eventTime'][:19]
     kst_login_time = datetime.strptime(state_login_time, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=-9) #KST 시간 변환
     
-    # Slack Message Title
-    title = "[%s]%s AWS Console Login" %(accountType, accountUserName)
-    
     # sourceIPAddress
     sourceIPAddress = data['sourceIPAddress']
     
@@ -48,10 +43,18 @@ def lambda_handler(event, context):
     # 접속 성공 유무
     loginStatusCheck = data['responseElements']['ConsoleLogin']
     
+    # Slack Message Title
+    title = "[Login %s] %s" %(loginStatusCheck, accountUserName)
+    
+    msg = "**Time** %s / **IP Address** %s / **MFA** %s" % (kst_login_time, sourceIPAddress, usedMFA)
+    
     slack_message = {
-        'channel': SLACK_CHANNEL,
-        'text': "*%s*\n>>>*접속시간*\n%s\n*접속 IPAddress*\n%s\n*Console Login 결과*\n%s\n*MFA 사용유무*\n%s" % (title, kst_login_time, sourceIPAddress, loginStatusCheck, usedMFA)
+        '@type': 'MessageCard',
+        'themeColor': "0076D7",
+        'title': title,
+        'text': msg
     }
+    
 
     req = Request(HOOK_URL, json.dumps(slack_message).encode('utf-8'))
     try:
