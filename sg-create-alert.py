@@ -37,6 +37,7 @@ def lambda_handler(event, context):
     # 주체
     user_name = data['userIdentity']['userName']
     source_ip = data['sourceIPAddress']
+    acount = data['userIdentity']['accountId']
 
     # 이벤트 내역
     event_time = data['eventTime']
@@ -71,6 +72,10 @@ def lambda_handler(event, context):
                         {
                             "name": "Time(UTC)",
                             "value": event_time
+                        },
+                        {
+                            "name": "Acount ID",
+                            "value": acount
                         },
                         {
                             "name": "User",
