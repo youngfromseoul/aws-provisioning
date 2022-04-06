@@ -33,12 +33,9 @@ def lambda_handler(event, context):
     
     # 정보
     event_id = data['eventID']
-    
-    # 주체
-    user_name = data['userIdentity']['userName']
-    source_ip = data['sourceIPAddress']
+    event_type = data['userIdentity']['type']
     acount = data['userIdentity']['accountId']
-
+    
     # 이벤트 내역
     event_time = data['eventTime']
     event_name = data['eventName']
@@ -60,6 +57,12 @@ def lambda_handler(event, context):
     
     logger.info("HOOK URL     : " + HOOK_URL)
     
+    # IAM 접속인지, Role Switch인지 확인
+    if event_type == "IAMUser":
+        # 주체
+        user_name = data['userIdentity']['userName']
+    else:
+        user_name = data['userIdentity']['sessionContext']['sessionIssuer']['userName']
     slack_message = {
             "@type": "MessageCard",
             "themeColor": "FF0000",
@@ -104,7 +107,6 @@ def lambda_handler(event, context):
                     ],
                 }
             ]
-    }
-    
+        }
     logger.info("Slack Message        : " + str(slack_message))
     send_message(slack_message)
