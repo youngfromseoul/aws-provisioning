@@ -34,35 +34,75 @@ def lambda_handler(event, context):
     logger.info("Event: " + str(event))
     data = event['detail']
     
-    accountType = data['userIdentity']['type']
-    
-    # Root 인지 IAMUser 인지 구분
-    if accountType == "Root":
-        accountUserName = "Root"
-    elif accountType == "IAMUser":
-        accountUserName = data['userIdentity']['userName']
-    else:
-        accountUserName = " "
-        
     # 시간
     event_time = data['eventTime']
     
     # sourceIPAddress
     sourceIPAddress = data['sourceIPAddress']
     
-    # MFA 사용 유무
-    usedMFA = data['additionalEventData']['MFAUsed']
-    
     # Acount
     acount = data['userIdentity']['accountId']
     
-    # 접속 성공 유무
-    loginStatusCheck = data['responseElements']['ConsoleLogin']
-    
-    
     logger.info("HOOK URL     : " + HOOK_URL)
     
-    slack_message = {
+    # 이벤트 타입 구분
+    event_type = data['eventName']
+    
+    if event_type == "SwitchRole":
+        switchStatusCheck = data['responseElements']['SwitchRole']
+        switchUserName = data['additionalEventData']['SwitchFrom']
+        switch_message = {
+            "@type": "MessageCard",
+            "themeColor": "0076D7",
+            "summary": "AWS Console Login",
+            "sections": [
+                {
+                    "activityTitle": "AWS Console Login Notice",
+                    "activitySubtitle": "AWS Switch Role",
+                    "facts": [
+                        {
+                            "name": "Time(UTC)",
+                            "value": event_time
+                        },
+                        {
+                            "name": "Acount ID",
+                            "value": accountname
+                        },
+                        {
+                            "name": "SwitchFrom",
+                            "value": switchUserName
+                        },
+                        {
+                            "name": "Source IP",
+                            "value": sourceIPAddress
+                        },
+                        {
+                            "name": "Status",
+                            "value": switchStatusCheck
+                        }
+                    ]
+                }
+            ]
+        }
+        logger.info("Slack Message        : " + str(switch_message))
+        send_message(switch_message)
+    else:
+        loginStatusCheck = data['responseElements']['ConsoleLogin']
+        usedMFA = data['additionalEventData']['MFAUsed']
+        accountType = data['userIdentity']['type']
+    
+        # Root 인지 IAMUser 인지 구분
+        if accountType == "Root":
+            accountUserName = "Root"
+        elif accountType == "IAMUser":
+            accountUserName = data['userIdentity']['userName']
+        else:
+            accountUserName = " "
+        
+        if accountUserName == "HIDDEN_DUE_TO_SECURITY_REASONS":
+            accountUserName = "User Not Found"
+        
+        login_message = {
             "@type": "MessageCard",
             "themeColor": "0076D7",
             "summary": "AWS Console Login",
@@ -77,7 +117,7 @@ def lambda_handler(event, context):
                         },
                         {
                             "name": "Acount ID",
-                            "value": acount
+                            "value": accountname
                         },
                         {
                             "name": "User",
@@ -98,8 +138,6 @@ def lambda_handler(event, context):
                     ]
                 }
             ]
-    }
-        
-    logger.info("Slack Message        : " + str(slack_message))
-    
-    send_message(slack_message)
+        }
+        logger.info("Slack Message        : " + str(login_message))
+        send_message(login_message)
