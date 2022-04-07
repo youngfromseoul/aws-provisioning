@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 def send_message(message):
     
-    data = json.dumps(message).encode('utf-8')
+    data = json.dumps(message, default=str).encode('utf-8')
 
     res = http.request(
         method='POST',
@@ -34,8 +34,9 @@ def lambda_handler(event, context):
     logger.info("Event: " + str(event))
     data = event['detail']
     
-    # 시간
-    event_time = data['eventTime']
+    # time
+    event_time = data['eventTime'][:19]
+    kst_event_time = datetime.strptime(event_time, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=-9)
     
     # sourceIPAddress
     sourceIPAddress = data['sourceIPAddress']
@@ -44,7 +45,7 @@ def lambda_handler(event, context):
     acount = data['userIdentity']['accountId']
     
     logger.info("HOOK URL     : " + HOOK_URL)
-    
+
     # 이벤트 타입 구분
     event_type = data['eventName']
     
@@ -61,8 +62,8 @@ def lambda_handler(event, context):
                     "activitySubtitle": "AWS Switch Role",
                     "facts": [
                         {
-                            "name": "Time(UTC)",
-                            "value": event_time
+                            "name": "Time",
+                            "value": kst_event_time
                         },
                         {
                             "name": "Acount ID",
@@ -112,8 +113,8 @@ def lambda_handler(event, context):
                     "activitySubtitle": "AWS Console Login",
                     "facts": [
                         {
-                            "name": "Time(UTC)",
-                            "value": event_time
+                            "name": "Time",
+                            "value": kst_event_time
                         },
                         {
                             "name": "Acount ID",
