@@ -3,6 +3,10 @@ import json
 import logging
 import os
 import urllib3
+import time
+
+from datetime import datetime
+from datetime import timedelta
 
 http = urllib3.PoolManager()
 
@@ -15,7 +19,7 @@ logger.setLevel(logging.INFO)
 
 def send_message(message):
     
-    data = json.dumps(message).encode('utf-8')
+    data = json.dumps(message, default=).encode('utf-8')
 
     res = http.request(
         method='POST',
@@ -31,13 +35,13 @@ def lambda_handler(event, context):
     
     logger.info("Event        : " + str(event))
     
-    # 정보
     event_id = data['eventID']
     event_type = data['userIdentity']['type']
     acount = data['userIdentity']['accountId']
-    
-    # 이벤트 내역
+  
     event_time = data['eventTime']
+    kst_event_time = datetime.strptime(event_time, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=-9)
+    
     event_name = data['eventName']
     aws_region = data['awsRegion']
     groupId = (data['requestParameters']['groupId'])
@@ -57,9 +61,7 @@ def lambda_handler(event, context):
     
     logger.info("HOOK URL     : " + HOOK_URL)
     
-    # IAM 접속인지, Role Switch인지 확인
     if event_type == "IAMUser":
-        # 주체
         user_name = data['userIdentity']['userName']
     else:
         user_name = data['userIdentity']['sessionContext']['sessionIssuer']['userName']
@@ -73,12 +75,16 @@ def lambda_handler(event, context):
                     "activitySubtitle": "SG Rule 생성 탐지",
                     "facts": [
                         {
-                            "name": "Time(UTC)",
-                            "value": event_time
+                            "name": "Time",
+                            "value": kst_event_time
                         },
                         {
                             "name": "Acount ID",
-                            "value": acount
+                            "value": accountname
+                        },
+                        {
+                            "name": "Region",
+                            "value": aws_region
                         },
                         {
                             "name": "User",
